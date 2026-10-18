@@ -4,8 +4,10 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddRazorPages();
+var databasePath = builder.Configuration.GetConnectionString("PriceCheck") ??
+    $"Data Source={Path.GetFullPath(Path.Combine(builder.Environment.ContentRootPath, "..", "pricecheck.db"))}";
 builder.Services.AddDbContext<PriceCheck.Data.PriceCheckContext>(options =>
-    options.UseSqlite(builder.Configuration.GetConnectionString("PriceCheck") ?? "Data Source=pricecheck.db"));
+    options.UseSqlite(databasePath));
 builder.Services.AddHttpClient<PriceCheck.Services.ProductPagePriceImporter>(client =>
 {
     client.Timeout = TimeSpan.FromSeconds(15);

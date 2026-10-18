@@ -19,7 +19,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\PriceCheck.csproj" />
+    <ProjectReference Include="..\PriceCheck.App\PriceCheck.csproj" />
   </ItemGroup>
 
 </Project>

@@ -9,8 +9,7 @@ PriceCheck is a responsive price-tracking web app built with ASP.NET Core Razor 
 ## Run locally
 
 ```powershell
-dotnet restore
-dotnet run
+dotnet run --project PriceCheck.App/PriceCheck.csproj
 ```
 
 Open the local URL printed by `dotnet run`. On first launch the app creates `pricecheck.db` and seeds a few sample products so the dashboard is populated.
@@ -24,7 +23,7 @@ The first successful import establishes the tracking baseline; the app cannot re
 Run the parser and price-history tests with:
 
 ```powershell
-dotnet test tests/PriceCheck.Tests/PriceCheck.Tests.csproj
+dotnet test PriceCheck.Tests/PriceCheck.Tests.csproj
 ```
 
 ## Data model

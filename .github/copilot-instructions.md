@@ -6,4 +6,5 @@
 - Retailer-list import reads supported structured ItemList/Product data and is capped at 100 products per page; keep category assignment explicit.
 - Save history only when price or currency changes, and retain observations for 12 months.
 - Keep product and price-history behavior scoped to the existing `Product` and `PriceObservation` domain.
-- Run `dotnet build` after application changes.
+- The web application lives in `PriceCheck.App`; tests live in `PriceCheck.Tests` at the repository root.
+- Run `dotnet build PriceCheck.App/PriceCheck.csproj` after application changes.
