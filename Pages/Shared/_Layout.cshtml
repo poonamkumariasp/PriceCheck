@@ -1,0 +1,32 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - PriceCheck</title>
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/PriceCheck.styles.css" asp-append-version="true" />
+</head>
+<body class="app-body">
+    <header class="topbar">
+        <div class="topbar-inner">
+            <a class="brand" asp-page="/Index" aria-label="PriceCheck overview">
+                <span class="brand-symbol" aria-hidden="true"><span></span><span></span><span></span></span>
+                <span>pricecheck<span class="brand-period">.</span></span>
+            </a>
+            <nav class="top-nav" aria-label="Main navigation">
+                <a class="top-nav-link active" asp-page="/Index"><span class="nav-indicator"></span>Overview</a>
+                <a class="top-nav-link" href="#watchlist-title">Watchlist</a>
+            </nav>
+            <div class="profile-chip" aria-label="Personal workspace"><span class="profile-avatar">P</span><span class="profile-name">My workspace</span></div>
+        </div>
+    </header>
+    <main role="main" class="app-shell">
+        @RenderBody()
+        <footer class="app-footer"><span>PriceCheck <span class="footer-dot">/</span> your prices, in perspective.</span><span>MANUAL PRICE TRACKING</span></footer>
+    </main>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

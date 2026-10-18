@@ -1,0 +1,25 @@
+## .NET build output
+bin/
+obj/
+artifacts/
+
+## Local database and runtime files
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+*.log
+
+## IDE and user-specific files
+.vs/
+.vscode/*
+!.vscode/extensions.json
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+## OS files
+Thumbs.db
+.DS_Store
