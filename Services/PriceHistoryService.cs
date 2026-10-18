@@ -5,10 +5,14 @@ using PriceCheck.Models;
 namespace PriceCheck.Services;
 
 public sealed record PriceUpdateResult(string ProductName, decimal Price, string Currency, bool PriceChanged);
+public sealed record CatalogImportResult(int ProductsFound, int ProductsAdded, int PricesChanged, string Retailer);
 
 public sealed class PriceHistoryService(PriceCheckContext database, ProductPagePriceImporter importer)
 {
-    public async Task<PriceUpdateResult> ImportAndRecordAsync(string productUrl, CancellationToken cancellationToken = default)
+    public async Task<PriceUpdateResult> ImportAndRecordAsync(
+        string productUrl,
+        string? category = null,
+        CancellationToken cancellationToken = default)
     {
         var imported = await importer.ImportAsync(productUrl, cancellationToken);
         var product = await database.Products
@@ -17,12 +21,18 @@ public sealed class PriceHistoryService(PriceCheckContext database, ProductPageP
 
         if (product is null)
         {
-            product = new Product { Name = imported.Name, ProductUrl = imported.Url };
+            product = new Product
+            {
+                Name = imported.Name,
+                ProductUrl = imported.Url,
+                Category = Models.ProductCategory.Normalize(category)
+            };
             database.Products.Add(product);
         }
         else
         {
             product.Name = imported.Name;
+            if (!string.IsNullOrWhiteSpace(category)) product.Category = Models.ProductCategory.Normalize(category);
         }
 
         var latest = product.PriceObservations.OrderByDescending(item => item.ObservedAt).FirstOrDefault();
@@ -43,6 +53,57 @@ public sealed class PriceHistoryService(PriceCheckContext database, ProductPageP
         return new PriceUpdateResult(product.Name, imported.Price, imported.Currency, changed);
     }
 
+    public async Task<CatalogImportResult> ImportCatalogAsync(
+        string catalogUrl,
+        string? category,
+        CancellationToken cancellationToken = default)
+    {
+        var catalog = await importer.ImportCatalogAsync(catalogUrl, cancellationToken);
+        var added = 0;
+        var changed = 0;
+        foreach (var item in catalog.Products)
+        {
+            if (string.IsNullOrWhiteSpace(item.Url)) continue;
+            var product = await database.Products
+                .Include(existing => existing.PriceObservations)
+                .SingleOrDefaultAsync(existing => existing.ProductUrl == item.Url, cancellationToken);
+
+            if (product is null)
+            {
+                product = new Product
+                {
+                    Name = item.Name,
+                    ProductUrl = item.Url,
+                    Category = Models.ProductCategory.Normalize(category)
+                };
+                database.Products.Add(product);
+                added++;
+            }
+            else
+            {
+                product.Name = item.Name;
+                product.Category = Models.ProductCategory.Normalize(category);
+            }
+
+            var latest = product.PriceObservations.OrderByDescending(observation => observation.ObservedAt).FirstOrDefault();
+            if (latest is null || latest.Amount != item.Price || latest.Currency != item.Currency)
+            {
+                product.PriceObservations.Add(new PriceObservation
+                {
+                    Retailer = catalog.Retailer,
+                    Amount = item.Price,
+                    Currency = item.Currency,
+                    ObservedAt = DateTimeOffset.UtcNow
+                });
+                changed++;
+            }
+        }
+
+        await database.SaveChangesAsync(cancellationToken);
+        await PruneExpiredHistoryAsync(null, cancellationToken);
+        return new CatalogImportResult(catalog.Products.Count, added, changed, catalog.Retailer);
+    }
+
     public async Task RefreshTrackedProductsAsync(CancellationToken cancellationToken = default)
     {
         var productUrls = await database.Products
@@ -56,7 +117,7 @@ public sealed class PriceHistoryService(PriceCheckContext database, ProductPageP
 
             try
             {
-                await ImportAndRecordAsync(productUrl, cancellationToken);
+                await ImportAndRecordAsync(productUrl, null, cancellationToken);
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {

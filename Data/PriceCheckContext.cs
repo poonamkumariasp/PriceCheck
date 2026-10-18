@@ -12,6 +12,7 @@ public sealed class PriceCheckContext(DbContextOptions<PriceCheckContext> option
     {
         modelBuilder.Entity<Product>().Property(product => product.Name).HasMaxLength(180).IsRequired();
         modelBuilder.Entity<Product>().Property(product => product.ProductUrl).HasMaxLength(2048);
+        modelBuilder.Entity<Product>().Property(product => product.Category).HasMaxLength(80).IsRequired();
         modelBuilder.Entity<PriceObservation>().Property(observation => observation.Amount).HasPrecision(12, 2);
         modelBuilder.Entity<PriceObservation>().Property(observation => observation.Retailer).HasMaxLength(120).IsRequired();
         modelBuilder.Entity<PriceObservation>().Property(observation => observation.Currency).HasMaxLength(3).IsRequired();
@@ -22,6 +23,29 @@ public sealed class PriceCheckContext(DbContextOptions<PriceCheckContext> option
             .OnDelete(DeleteBehavior.Cascade);
     }
 
+    public async Task EnsureCategoryColumnAsync(CancellationToken cancellationToken = default)
+    {
+        await Database.OpenConnectionAsync(cancellationToken);
+        try
+        {
+            await using var command = Database.GetDbConnection().CreateCommand();
+            command.CommandText = "PRAGMA table_info('Products');";
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+            while (await reader.ReadAsync(cancellationToken))
+            {
+                if (reader.GetString(1) == "Category") return;
+            }
+        }
+        finally
+        {
+            await Database.CloseConnectionAsync();
+        }
+
+        await Database.ExecuteSqlRawAsync(
+            "ALTER TABLE Products ADD COLUMN Category TEXT NOT NULL DEFAULT 'Other';",
+            cancellationToken);
+    }
+
     public static async Task SeedAsync(PriceCheckContext database)
     {
         if (await database.Products.AnyAsync()) return;
@@ -30,7 +54,7 @@ public sealed class PriceCheckContext(DbContextOptions<PriceCheckContext> option
         database.Products.AddRange(
             new Product
             {
-                Name = "Sony WH-1000XM5 headphones", ProductUrl = "https://www.sony.com/",
+                Name = "Sony WH-1000XM5 headphones", ProductUrl = "https://www.sony.com/", Category = "Electronics",
                 PriceObservations =
                 [
                     new() { Retailer = "Best Buy", Amount = 328.00m, ObservedAt = now.AddHours(-2) },
@@ -39,7 +63,7 @@ public sealed class PriceCheckContext(DbContextOptions<PriceCheckContext> option
             },
             new Product
             {
-                Name = "Ninja Creami ice cream maker", ProductUrl = "https://www.ninjakitchen.com/",
+                Name = "Ninja Creami ice cream maker", ProductUrl = "https://www.ninjakitchen.com/", Category = "Kitchen Appliances",
                 PriceObservations =
                 [
                     new() { Retailer = "Target", Amount = 179.99m, ObservedAt = now.AddHours(-7) },
@@ -48,7 +72,7 @@ public sealed class PriceCheckContext(DbContextOptions<PriceCheckContext> option
             },
             new Product
             {
-                Name = "Kindle Paperwhite", ProductUrl = "https://www.amazon.com/kindle-paperwhite/",
+                Name = "Kindle Paperwhite", ProductUrl = "https://www.amazon.com/kindle-paperwhite/", Category = "Electronics",
                 PriceObservations =
                 [
                     new() { Retailer = "Amazon", Amount = 149.99m, ObservedAt = now.AddDays(-1) },

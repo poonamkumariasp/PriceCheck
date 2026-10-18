@@ -44,8 +44,8 @@ public sealed class PriceHistoryServiceTests
         var history = new PriceHistoryService(database, importer);
         const string url = "https://1.1.1.1/product/milk";
 
-        var firstCheck = await history.ImportAndRecordAsync(url);
-        var secondCheck = await history.ImportAndRecordAsync(url);
+        var firstCheck = await history.ImportAndRecordAsync(url, "Food & Drinks");
+        var secondCheck = await history.ImportAndRecordAsync(url, "Food & Drinks");
         handler.Html = """
             <script type="application/ld+json">
             {"@type":"Product","name":"Filtered British Whole Milk","offers":{"price":"1.79","priceCurrency":"GBP"}}
@@ -58,6 +58,7 @@ public sealed class PriceHistoryServiceTests
         Assert.True(changedCheck.PriceChanged);
         Assert.Equal(2, await database.PriceObservations.CountAsync());
         Assert.Equal([1.69m, 1.79m], await database.PriceObservations.OrderBy(item => item.Amount).Select(item => item.Amount).ToArrayAsync());
+        Assert.Equal("Food & Drinks", (await database.Products.SingleAsync()).Category);
     }
 
     private sealed class StubPageHandler(string html) : HttpMessageHandler

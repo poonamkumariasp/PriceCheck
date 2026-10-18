@@ -31,6 +31,31 @@ public sealed class ProductPagePriceImporterTests
         Assert.Contains("does not expose", exception.Message);
     }
 
+        [Fact]
+        public void ParseCatalog_ExtractsProductsFromStructuredItemList()
+        {
+                const string html = """
+                        <script type="application/ld+json">
+                        {
+                            "@type":"ItemList",
+                            "itemListElement":[
+                                {"@type":"ListItem","item":{"@type":"Product","name":"Whole Milk","url":"/product/milk","offers":{"price":"1.69","priceCurrency":"GBP"}}},
+                                {"@type":"ListItem","item":{"@type":"Product","name":"Orange Juice","url":"https://shop.example/product/juice","offers":{"price":"2.20","priceCurrency":"GBP"}}},
+                                {"@type":"ListItem","item":{"@type":"Product","name":"Unpriced item","offers":{"price":"1.00","priceCurrency":"GBP"}}}
+                            ]
+                        }
+                        </script>
+                        """;
+
+                var products = ProductPagePriceImporter.ParseCatalog(html, new Uri("https://shop.example/food"));
+
+                Assert.Equal(3, products.Count);
+                Assert.Equal("https://shop.example/product/milk", products[0].Url);
+                Assert.Equal(1.69m, products[0].Price);
+                Assert.Equal("GBP", products[1].Currency);
+                Assert.Equal(string.Empty, products[2].Url);
+        }
+
     [Fact]
     public async Task ImportAsync_RejectsRedirectToPrivateAddress()
     {

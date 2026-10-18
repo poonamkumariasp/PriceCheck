@@ -15,7 +15,9 @@ dotnet run
 
 Open the local URL printed by `dotnet run`. On first launch the app creates `pricecheck.db` and seeds a few sample products so the dashboard is populated.
 
-Paste a store product page URL into **Track a product** to import its name and price from Schema.org `Product`/`Offer` JSON-LD. Retailer markup varies: if a page does not provide supported structured price data, use the manual entry form. Do not assume every store page can be imported; anti-bot controls, geographic restrictions, store selection, and retailer terms may affect availability. Aldi UK's example product page exposes its current price and currency in JSON-LD. Online prices can differ from in-store prices.
+Paste a store product page URL into **Track a product** to import its name and price from Schema.org `Product`/`Offer` JSON-LD. To add a retailer's catalog, paste a category/products-list page that publishes a Schema.org `ItemList` or multiple priced `Product` entries. PriceCheck imports up to 100 entries that have their own product URL and structured price; scan large catalogs one category page at a time. Retailer markup varies: if a page does not provide supported structured product and price data, use the manual entry form. Do not assume every store page can be imported; anti-bot controls, geographic restrictions, store selection, and retailer terms may affect availability. Aldi UK's example product page exposes its current price and currency in JSON-LD. Online prices can differ from in-store prices.
+
+Products can be grouped and browsed by Food & Drinks, Clothing & Shoes, Kitchen Appliances, Electronics, Home & Garden, Health & Beauty, Toys & Games, and Other. Choose the destination category when importing a single item or catalog.
 
 The first successful import establishes the tracking baseline; the app cannot reconstruct prices from before that date. While the app is running, tracked product pages are checked every 24 hours. A `PriceObservation` is stored only when the amount or currency changes, and observations older than 12 months are pruned. This is an app-hosted timer, not a separate cloud scheduler: checks pause whenever the app is stopped.
 
@@ -36,11 +38,12 @@ SQLite stores data in the project directory during local development. The databa
 
 ## GitHub
 
-Create an empty repository named `PriceCheck` in your GitHub account, then connect and push this local repository:
+This repository is connected to `https://github.com/poonamkumariasp/PriceCheck`. To publish future commits:
 
 ```powershell
-git remote add origin https://github.com/<your-account>/PriceCheck.git
-git push -u origin main
+git add -A
+git commit -m "Describe your change"
+git push
 ```
 
 The GitHub Actions workflow restores, builds, and tests the project on pushes and pull requests.

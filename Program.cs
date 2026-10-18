@@ -20,6 +20,7 @@ await using (var scope = app.Services.CreateAsyncScope())
 {
     var database = scope.ServiceProvider.GetRequiredService<PriceCheck.Data.PriceCheckContext>();
     await database.Database.EnsureCreatedAsync();
+    await database.EnsureCategoryColumnAsync();
     await PriceCheck.Data.PriceCheckContext.SeedAsync(database);
 }
 

@@ -1,10 +1,15 @@
 ﻿@page
 @model IndexModel
 @using System.Globalization
+@using PriceCheck.Models
 @{
     ViewData["Title"] = "Overview";
     var observations = Model.Products.SelectMany(product => product.PriceObservations).ToList();
-    var latestPrices = Model.Products
+    var categoryFilter = ProductCategory.Normalize(Model.CategoryFilter);
+    var visibleProducts = Model.CategoryFilter is null or "All"
+        ? Model.Products
+        : Model.Products.Where(product => product.Category == categoryFilter).ToList();
+    var latestPrices = visibleProducts
         .Select(product => new { Product = product, Latest = product.PriceObservations.OrderByDescending(item => item.ObservedAt).FirstOrDefault() })
         .Where(item => item.Latest is not null)
         .ToList();
@@ -33,10 +38,22 @@
         <div class="import-success" role="status">@importMessage</div>
     }
     <section class="watchlist-section" aria-labelledby="watchlist-title">
-        <div class="section-heading"><div><p class="eyebrow">PRICE ACTIVITY</p><h2 id="watchlist-title">Your watchlist</h2></div><span class="item-count">@Model.Products.Count items</span></div>
+        <div class="section-heading"><div><p class="eyebrow">PRICE ACTIVITY</p><h2 id="watchlist-title">Your watchlist</h2></div><span class="item-count">@visibleProducts.Count of @Model.Products.Count items</span></div>
+        <nav class="category-nav" aria-label="Browse product categories">
+            <a class="category-link @(Model.CategoryFilter is null or "All" ? "selected" : "")" asp-page="/Index" asp-route-category="All">All products <span>@Model.Products.Count</span></a>
+            @foreach (var category in Model.Categories)
+            {
+                var count = Model.Products.Count(product => product.Category == category);
+                <a class="category-link @(Model.CategoryFilter == category ? "selected" : "")" asp-page="/Index" asp-route-category="@category">@category <span>@count</span></a>
+            }
+        </nav>
         @if (Model.Products.Count == 0)
         {
             <div class="empty-state"><span class="empty-mark" aria-hidden="true">+</span><h3>Your watchlist starts here</h3><p>Add a product and its current price to start comparing over time.</p><a class="button button-primary" href="#add-product">Add your first product</a></div>
+        }
+        else if (visibleProducts.Count == 0)
+        {
+            <div class="empty-state"><h3>No @categoryFilter tracked yet</h3><p>Import a retailer list or add a product and assign it to this category.</p><a class="button button-primary" href="#add-product">Add products</a></div>
         }
         else
         {
@@ -50,7 +67,7 @@
                     var change = previous is null ? 0 : Math.Abs((latest.Amount - previous.Amount) / previous.Amount * 100);
                     <article class="product-row">
                         <div class="product-monogram" aria-hidden="true">@item.Product.Name[..1].ToUpperInvariant()</div>
-                        <div class="product-main"><h3>@item.Product.Name</h3><p>@latest.Retailer <span class="row-separator">·</span> Updated @latest.ObservedAt.ToLocalTime().ToString("MMM d, h:mm tt")</p></div>
+                        <div class="product-main"><h3>@item.Product.Name</h3><p><span class="product-category-tag">@item.Product.Category</span>@latest.Retailer <span class="row-separator">·</span> Updated @latest.ObservedAt.ToLocalTime().ToString("MMM d, h:mm tt")</p></div>
                         <div class="product-history" aria-label="@history.Count recorded prices">
                             @foreach (var point in history.Take(6).Reverse())
                             {
@@ -68,6 +85,20 @@
                             }
                         </ol>
                     </details>
+                    <details class="category-edit">
+                        <summary>Change category</summary>
+                        <form method="post" asp-page-handler="SetCategory" class="category-edit-form">
+                            <input type="hidden" name="productId" value="@item.Product.Id" />
+                            <label class="visually-hidden" for="category-@item.Product.Id">Category for @item.Product.Name</label>
+                            <select id="category-@item.Product.Id" name="category" class="category-select">
+                                @foreach (var category in Model.Categories)
+                                {
+                                    <option value="@category" selected="@(category == item.Product.Category)">@category</option>
+                                }
+                            </select>
+                            <button class="button button-secondary" type="submit">Save category</button>
+                        </form>
+                    </details>
                 }
             </div>
         }
@@ -75,14 +106,32 @@
 
     <aside class="add-panel" id="add-product" aria-labelledby="add-title">
         <div class="add-panel-heading"><span class="panel-icon" aria-hidden="true">+</span><div><p class="eyebrow">GROW YOUR LIST</p><h2 id="add-title">Track a product</h2></div></div>
-        <p class="panel-copy">Import the product and current price directly from a supported store page.</p>
+        <p class="panel-copy">Import one product, or scan a retailer list for structured product prices.</p>
         <form method="post" asp-page-handler="Import" class="product-form import-form">
             <div asp-validation-summary="ModelOnly" class="validation-message" role="alert"></div>
-            <label asp-for="ProductUrl">Store product page</label>
-            <input asp-for="ProductUrl" type="url" placeholder="https://www.aldi.co.uk/product/..." inputmode="url" required />
+            <label asp-for="Category">Save in category</label>
+            <select asp-for="Category" class="category-select">
+                @foreach (var category in Model.Categories) { <option value="@category">@category</option> }
+            </select>
+            <label asp-for="ProductUrl">Single product page</label>
+            <input asp-for="ProductUrl" type="url" placeholder="https://store.com/product/..." inputmode="url" required />
             <span asp-validation-for="ProductUrl" class="validation-message"></span>
             <button class="button button-primary submit-button" type="submit">Import product <span aria-hidden="true">↗</span></button>
         </form>
+        <details class="catalog-import">
+            <summary>Import a retailer products list</summary>
+            <form method="post" asp-page-handler="ImportCatalog" class="product-form">
+                <label asp-for="CatalogUrl">Category or listing page URL</label>
+                <input asp-for="CatalogUrl" type="url" placeholder="https://store.com/category/..." inputmode="url" required />
+                <span asp-validation-for="CatalogUrl" class="validation-message"></span>
+                <label asp-for="Category">Save products in</label>
+                <select asp-for="Category" class="category-select">
+                    @foreach (var category in Model.Categories) { <option value="@category">@category</option> }
+                </select>
+                <button class="button button-primary submit-button" type="submit">Scan products list <span aria-hidden="true">↗</span></button>
+            </form>
+            <p class="form-footnote">Imports up to 100 products with individual URLs and supported structured prices. Large catalogs can be scanned one category page at a time.</p>
+        </details>
         <details class="manual-entry">
             <summary>Enter price manually</summary>
             <form method="post" class="product-form">
@@ -90,6 +139,7 @@
                 <label asp-for="RetailerName">Retailer</label><input asp-for="RetailerName" placeholder="e.g. ALDI UK" autocomplete="organization" required />
                 <label asp-for="Price">Current price</label><input asp-for="Price" type="number" min="0.01" step="0.01" placeholder="0.00" inputmode="decimal" required />
                 <label asp-for="Currency">Currency code</label><input asp-for="Currency" maxlength="3" placeholder="GBP" required />
+                <label asp-for="Category">Category</label><select asp-for="Category" class="category-select">@foreach (var category in Model.Categories) { <option value="@category">@category</option> }</select>
                 <div asp-validation-summary="ModelOnly" class="validation-message" role="alert"></div>
                 <button class="button button-secondary submit-button" type="submit">Save price</button>
             </form>
