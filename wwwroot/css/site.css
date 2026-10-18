@@ -77,6 +77,17 @@ h2 { margin: 0; font-family: var(--serif); font-size: 23px; font-weight: 500; le
 .price-down { color: var(--green); }
 .price-up { color: var(--red); }
 .price-neutral { color: #8b938e; }
+.import-success { grid-column: 1 / -1; padding: 11px 14px; border: 1px solid #c8dfd0; border-radius: 5px; color: #285d44; background: #edf6ef; font-size: 11px; }
+.history-details { padding: 0 0 11px 57px; border-bottom: 1px solid var(--line); }
+.history-details summary, .manual-entry summary { color: var(--green-dark); cursor: pointer; font-size: 10px; font-weight: 650; }
+.history-details summary span { color: #8b938e; font-weight: 400; }
+.history-list { display: grid; gap: 0; margin: 9px 0 0; padding: 0; list-style: none; }
+.history-list li { display: grid; grid-template-columns: minmax(85px, 1fr) minmax(80px, 1fr) auto; gap: 10px; padding: 7px 0; border-top: 1px solid #eef0ed; color: #7d8780; font-size: 10px; }
+.history-list strong { color: var(--ink); font-variant-numeric: tabular-nums; font-weight: 650; text-align: right; }
+.manual-entry { margin-top: 15px; padding-top: 13px; border-top: 1px solid var(--line); }
+.manual-entry[open] summary { margin-bottom: 4px; }
+.button-secondary { color: var(--green-dark); border-color: #d8e3db; background: #f6faf7; }
+.button-secondary:hover { background: #eaf3ed; }
 .add-panel { padding: 20px; border: 1px solid #e2e7e1; border-radius: 6px; background: var(--white); }
 .add-panel-heading { display: flex; align-items: center; gap: 11px; }
 .panel-icon { width: 30px; aspect-ratio: 1; display: grid; place-items: center; border-radius: 5px; color: var(--green); background: var(--green-soft); font-size: 19px; }
@@ -136,6 +147,8 @@ h2 { margin: 0; font-family: var(--serif); font-size: 23px; font-weight: 500; le
   .section-heading { margin-bottom: 11px; }
   h2 { font-size: 21px; }
   .product-row { min-height: 82px; grid-template-columns: 34px minmax(0, 1fr) 70px; gap: 9px; padding: 12px 0; }
+  .history-details { padding-left: 43px; }
+  .history-list li { grid-template-columns: minmax(76px, 1fr) minmax(60px, 1fr) auto; gap: 6px; font-size: 9px; }
   .product-monogram { width: 34px; font-size: 16px; }
   .product-history { display: none; }
   .product-main h3 { font-size: 11px; }

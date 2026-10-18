@@ -8,7 +8,12 @@
         .Select(product => new { Product = product, Latest = product.PriceObservations.OrderByDescending(item => item.ObservedAt).FirstOrDefault() })
         .Where(item => item.Latest is not null)
         .ToList();
-    var savings = latestPrices.Sum(item => Math.Max(0, item.Product.PriceObservations.Max(price => price.Amount) - item.Latest!.Amount));
+    var downwardChanges = latestPrices.Count(item =>
+    {
+        var previous = item.Product.PriceObservations.OrderByDescending(price => price.ObservedAt).Skip(1).FirstOrDefault();
+        return previous is not null && item.Latest!.Amount < previous.Amount && item.Latest.Currency == previous.Currency;
+    });
+    var importMessage = TempData["ImportMessage"] as string;
 }
 
 <div class="page-heading">
@@ -19,10 +24,14 @@
 <section class="summary-grid" aria-label="Price tracking summary">
     <article class="summary-item"><span class="summary-label">Products tracked</span><strong class="summary-value">@Model.Products.Count</strong><span class="summary-note"><span class="status-dot"></span> Across your watchlist</span></article>
     <article class="summary-item"><span class="summary-label">Prices collected</span><strong class="summary-value">@observations.Count</strong><span class="summary-note">From @observations.Select(item => item.Retailer).Distinct().Count() retailers</span></article>
-    <article class="summary-item summary-savings"><span class="summary-label">Potential savings</span><strong class="summary-value">@savings.ToString("C0", CultureInfo.GetCultureInfo("en-US"))</strong><span class="summary-note"><span class="trend-arrow">↓</span> Lowest price vs. previous checks</span></article>
+    <article class="summary-item summary-savings"><span class="summary-label">Prices trending down</span><strong class="summary-value">@downwardChanges</strong><span class="summary-note"><span class="trend-arrow">↓</span> Compared with previous check</span></article>
 </section>
 
 <div class="content-grid">
+    @if (!string.IsNullOrWhiteSpace(importMessage))
+    {
+        <div class="import-success" role="status">@importMessage</div>
+    }
     <section class="watchlist-section" aria-labelledby="watchlist-title">
         <div class="section-heading"><div><p class="eyebrow">PRICE ACTIVITY</p><h2 id="watchlist-title">Your watchlist</h2></div><span class="item-count">@Model.Products.Count items</span></div>
         @if (Model.Products.Count == 0)
@@ -48,8 +57,17 @@
                                 <span class="history-bar" style="--bar-height: @(Math.Clamp((double)(point.Amount / history.Max(price => price.Amount)) * 28, 9, 28))px"></span>
                             }
                         </div>
-                        <div class="product-price"><strong>@latest.Amount.ToString("C", CultureInfo.GetCultureInfo("en-US"))</strong>@if (previous is not null){<span class="@(dropped ? "price-down" : "price-up")">@(dropped ? "↓" : "↑") @change.ToString("0.#")%</span>}else{<span class="price-neutral">First check</span>}</div>
+                        <div class="product-price"><strong>@IndexModel.FormatPrice(latest.Amount, latest.Currency)</strong>@if (previous is not null && latest.Currency == previous.Currency){<span class="@(dropped ? "price-down" : "price-up")">@(dropped ? "↓" : "↑") @change.ToString("0.#")%</span>}else{<span class="price-neutral">@(previous is null ? "First check" : "Currency changed")</span>}</div>
                     </article>
+                    <details class="history-details">
+                        <summary>12-month price history <span>(@history.Count price changes)</span></summary>
+                        <ol class="history-list">
+                            @foreach (var observation in history)
+                            {
+                                <li><time datetime="@observation.ObservedAt.ToString("O")">@observation.ObservedAt.ToLocalTime().ToString("MMM d, yyyy")</time><span>@observation.Retailer</span><strong>@IndexModel.FormatPrice(observation.Amount, observation.Currency)</strong></li>
+                            }
+                        </ol>
+                    </details>
                 }
             </div>
         }
@@ -57,15 +75,25 @@
 
     <aside class="add-panel" id="add-product" aria-labelledby="add-title">
         <div class="add-panel-heading"><span class="panel-icon" aria-hidden="true">+</span><div><p class="eyebrow">GROW YOUR LIST</p><h2 id="add-title">Track a product</h2></div></div>
-        <p class="panel-copy">Save a product and its latest price to your watchlist.</p>
-        <form method="post" class="product-form">
+        <p class="panel-copy">Import the product and current price directly from a supported store page.</p>
+        <form method="post" asp-page-handler="Import" class="product-form import-form">
             <div asp-validation-summary="ModelOnly" class="validation-message" role="alert"></div>
-            <label asp-for="ProductName">Product name</label><input asp-for="ProductName" placeholder="e.g. Wireless headphones" autocomplete="off" required />
-            <label asp-for="RetailerName">Retailer</label><input asp-for="RetailerName" placeholder="e.g. Best Buy" autocomplete="organization" required />
-            <label asp-for="Price">Current price</label><div class="price-input-wrap"><span aria-hidden="true">$</span><input asp-for="Price" type="number" min="0.01" step="0.01" placeholder="0.00" inputmode="decimal" required /></div>
-            <label asp-for="ProductUrl">Product link <span class="optional-label">Optional</span></label><input asp-for="ProductUrl" type="url" placeholder="https://" inputmode="url" />
-            <button class="button button-primary submit-button" type="submit">Add to watchlist <span aria-hidden="true">→</span></button>
+            <label asp-for="ProductUrl">Store product page</label>
+            <input asp-for="ProductUrl" type="url" placeholder="https://www.aldi.co.uk/product/..." inputmode="url" required />
+            <span asp-validation-for="ProductUrl" class="validation-message"></span>
+            <button class="button button-primary submit-button" type="submit">Import product <span aria-hidden="true">↗</span></button>
         </form>
-        <p class="form-footnote"><span aria-hidden="true">↗</span> Prices are entered manually for now.</p>
+        <details class="manual-entry">
+            <summary>Enter price manually</summary>
+            <form method="post" class="product-form">
+                <label asp-for="ProductName">Product name</label><input asp-for="ProductName" placeholder="e.g. Filtered whole milk" autocomplete="off" required />
+                <label asp-for="RetailerName">Retailer</label><input asp-for="RetailerName" placeholder="e.g. ALDI UK" autocomplete="organization" required />
+                <label asp-for="Price">Current price</label><input asp-for="Price" type="number" min="0.01" step="0.01" placeholder="0.00" inputmode="decimal" required />
+                <label asp-for="Currency">Currency code</label><input asp-for="Currency" maxlength="3" placeholder="GBP" required />
+                <div asp-validation-summary="ModelOnly" class="validation-message" role="alert"></div>
+                <button class="button button-secondary submit-button" type="submit">Save price</button>
+            </form>
+        </details>
+        <p class="form-footnote"><span aria-hidden="true">↻</span> Tracked store pages refresh daily. Only price changes are saved; history is kept for 12 months.</p>
     </aside>
 </div>

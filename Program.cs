@@ -6,6 +6,13 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddRazorPages();
 builder.Services.AddDbContext<PriceCheck.Data.PriceCheckContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("PriceCheck") ?? "Data Source=pricecheck.db"));
+builder.Services.AddHttpClient<PriceCheck.Services.ProductPagePriceImporter>(client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(15);
+    client.MaxResponseContentBufferSize = 2 * 1024 * 1024;
+}).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
+builder.Services.AddScoped<PriceCheck.Services.PriceHistoryService>();
+builder.Services.AddHostedService<PriceCheck.Services.DailyPriceCheckService>();
 
 var app = builder.Build();
 

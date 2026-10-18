@@ -14,4 +14,4 @@ jobs:
           dotnet-version: 10.0.x
       - run: dotnet restore
       - run: dotnet build --no-restore --configuration Release
-      - run: dotnet test --no-build --configuration Release
+      - run: dotnet test tests/PriceCheck.Tests/PriceCheck.Tests.csproj --configuration Release
